@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+
+    environment {
+        REPO_URL = 'https://github.com/your-username/your-repo.git'
+        BRANCH_NAME = 'your-branch-name'
+        CREDENTIALS_ID = 'your-credentials-id'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([$class: 'GitSCM', 
+                          branches: [[name: '*/main']],
+                          userRemoteConfigs: [[url: env.REPO_URL, credentialsId: env.CREDENTIALS_ID]]
+                ])
+            }
+        }
+
+        stage('Determine Next Version') {
+            steps {
+                script {
+                    // Fetch all tags to determine the latest version
+                    sh "git fetch --tags"
+                    def latestTag = sh(script: "git describe --tags `git rev-list --tags --max-count=1`", returnStdout: true).trim()
+                    echo "Latest tag: ${latestTag}"
+
+                    // Parse the latest semantic version
+                    def (major, minor, patch) = latestTag.replaceFirst(/^v/, '').tokenize('.').collect { it as int }
+                    
+                    // Determine the next version
+                    if (env.BRANCH_NAME == 'main') {
+                        // Increment patch version for main branch (release)
+                        patch += 1
+                        env.NEW_VERSION = "v${major}.${minor}.${patch}"
+                    } else {
+                        // Increment pre-release version for other branches
+                        def preRelease = (env.BUILD_NUMBER as int)
+                        env.NEW_VERSION = "v${major}.${minor}.${patch}-pre.${preRelease}"
+                    }
+
+                    echo "New version: ${env.NEW_VERSION}"
+                }
+            }
+        }
+
+        stage('Merge Branch') {
+            steps {
+                script {
+                    sh """
+                    git checkout main
+                    git pull origin main
+                    git merge origin/${BRANCH_NAME}
+                    """
+                }
+            }
+        }
+
+        stage('Push Changes') {
+            steps {
+                script {
+                    sh """
+                    git push origin main
+                    """
+                }
+            }
+        }
+
+        stage('Create Tag') {
+            steps {
+                script {
+                    // Tag the repository with the new version
+                    sh """
+                    git tag -a ${env.NEW_VERSION} -m "Automated release ${env.NEW_VERSION}"
+                    git push origin ${env.NEW_VERSION}
+                    """
+                }
+            }
+        }
+
+        stage('Store Version') {
+            steps {
+                script {
+                    // Store the version information on the Jenkins node
+                    def versionFile = "${env.WORKSPACE}/version.txt"
+                    writeFile file: versionFile, text: "${env.NEW_VERSION}"
+                    archiveArtifacts artifacts: 'version.txt'
+                }
+            }
+        }
+    }
+}
