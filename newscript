@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Fetch all tags to determine the latest version
+git fetch --tags
+
+# Determine the latest tag
+latestTag=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null)
+if [ -z "$latestTag" ]; then
+    echo "No tags found in the repository. Creating initial tag v1.0.0."
+    latestTag="v1.0.0"
+    git tag -a v1.0.0 -m "Initial release"
+    git push origin v1.0.0
+else
+    echo "Latest tag: $latestTag"
+fi
+
+# Parse the latest semantic version
+if [[ $latestTag =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-pre\.([0-9]+))?$ ]]; then
+    major=${BASH_REMATCH[1]}
+    minor=${BASH_REMATCH[2]}
+    patch=${BASH_REMATCH[3]}
+    preRelease=${BASH_REMATCH[5]}
+else
+    echo "No valid semantic version tag found."
+    exit 1
+fi
+
+# Determine the next version
+if [ "$1" == "main" ]; then
+    # Increment patch version for main branch (release)
+    patch=$((patch + 1))
+    newVersion="v${major}.${minor}.${patch}"
+else
+    # Increment pre-release version for other branches
+    if [ -z "$preRelease" ]; then
+        preRelease=0
+    fi
+    preRelease=$((preRelease + 1))
+    newVersion="v${major}.${minor}.${patch}-pre.${preRelease}"
+fi
+
+echo "New version: $newVersion"
+
+# Optionally, create and push the tag (uncomment the following lines to enable tagging)
+# git tag -a $newVersion -m "Automated release $newVersion"
+# git push origin $newVersion
