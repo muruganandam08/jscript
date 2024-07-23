@@ -1,0 +1,19 @@
+# values.yaml for Jaeger
+
+image:
+  repository: docker-upstream.google.com/my-jaeger
+  tag: latest
+  pullPolicy: IfNotPresent
+
+collector:
+  endpoint: "0.0.0.0:14268"
+  grpc:
+    enabled: true
+  http:
+    enabled: true
+
+agent:
+  enabled: false
+
+ui:
+  enabled: true
