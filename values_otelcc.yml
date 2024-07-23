@@ -1,0 +1,29 @@
+mode: deployment
+
+replicas: 1
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+        http:
+  exporters:
+    logging:
+      logLevel: debug
+    jaeger:
+      endpoint: "http://jaeger-collector.observability:14268/api/traces"
+    prometheus:
+      endpoint: "0.0.0.0:8888"
+  processors:
+    batch:
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [logging, jaeger]
+      metrics:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [logging, prometheus]
