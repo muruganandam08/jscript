@@ -1,0 +1,25 @@
+git clone https://github.com/open-telemetry/opentelemetry-helm-charts.git
+cd opentelemetry-helm-charts/charts/opentelemetry-collector
+
+cat <<EOF > values.yaml
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+        http:
+  processors:
+    batch:
+  exporters:
+    logging:
+    jaeger:
+      endpoint: "my-jaeger-collector.observability.svc.cluster.local:14250"
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [logging, jaeger]
+EOF
+
+helm install my-otel-collector . --namespace opentelemetry --create-namespace -f values.yaml
