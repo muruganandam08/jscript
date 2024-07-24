@@ -1,0 +1,78 @@
+git clone https://github.com/jaegertracing/helm-charts.git
+cd helm-charts/charts/jaeger
+
+cat <<EOF > values.yaml
+collector:
+  image:
+    repository: "jaegertracing/jaeger-collector"
+    tag: "1.33.0"
+  service:
+    type: ClusterIP
+  jaegerTags:
+    - "hostname=$(HOSTNAME)"
+    - "env=production"
+  options:
+    collector:
+      zipkin:
+        http-port: 9411
+
+agent:
+  image:
+    repository: "jaegertracing/jaeger-agent"
+    tag: "1.33.0"
+  strategy: "allInOne"
+
+query:
+  image:
+    repository: "jaegertracing/jaeger-query"
+    tag: "1.33.0"
+  service:
+    type: ClusterIP
+  replicaCount: 1
+
+ingester:
+  image:
+    repository: "jaegertracing/jaeger-ingester"
+    tag: "1.33.0"
+  enabled: false
+
+storage:
+  type: "memory"
+  options:
+    memory:
+      max-traces: 50000
+
+kafka:
+  enabled: false
+
+elasticsearch:
+  enabled: false
+
+cassandra:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+
+agentSidecar:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+EOF
+
+helm install my-jaeger . --namespace observability --create-namespace -f values.yaml
