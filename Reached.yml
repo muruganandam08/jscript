@@ -1,0 +1,122 @@
+The error "forbidden: user 'app:deployment' cannot create daemonsets" indicates that the user or service account you're using does not have the necessary permissions to create DaemonSets in your Kubernetes cluster. This is typically resolved by updating the role-based access control (RBAC) settings.
+
+### Step-by-Step Solution
+
+1. **Identify the Service Account**: Determine which service account is being used for the Helm deployment. This is often specified in the Helm chart values or in the Kubernetes context.
+
+2. **Create a Role with DaemonSet Permissions**: Define a role that allows the creation of DaemonSets.
+
+3. **Create a RoleBinding**: Bind the role to the service account.
+
+### Example Steps
+
+#### Step 1: Identify the Service Account
+
+Check the service account specified in the Helm values file or the default service account in the namespace where you are deploying Jaeger.
+
+#### Step 2: Create a Role with DaemonSet Permissions
+
+Create a YAML file named `jaeger-daemonset-role.yaml`:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jaeger-daemonset-role
+  namespace: otel
+rules:
+- apiGroups: ["apps"]
+  resources: ["daemonsets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+```
+
+Apply the role:
+
+```sh
+kubectl apply -f jaeger-daemonset-role.yaml
+```
+
+#### Step 3: Create a RoleBinding
+
+Create a YAML file named `jaeger-daemonset-rolebinding.yaml` and replace `<service-account-name>` with the name of your service account:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jaeger-daemonset-rolebinding
+  namespace: otel
+subjects:
+- kind: ServiceAccount
+  name: <service-account-name>
+  namespace: otel
+roleRef:
+  kind: Role
+  name: jaeger-daemonset-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+Apply the role binding:
+
+```sh
+kubectl apply -f jaeger-daemonset-rolebinding.yaml
+```
+
+### Step 4: Retry the Deployment
+
+Retry the Helm deployment:
+
+```sh
+helm install jaeger ./jaeger --namespace otel
+```
+
+### Full Example
+
+Here is a full example with a service account named `jaeger-sa`:
+
+#### jaeger-daemonset-role.yaml
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jaeger-daemonset-role
+  namespace: otel
+rules:
+- apiGroups: ["apps"]
+  resources: ["daemonsets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+```
+
+#### jaeger-daemonset-rolebinding.yaml
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jaeger-daemonset-rolebinding
+  namespace: otel
+subjects:
+- kind: ServiceAccount
+  name: jaeger-sa
+  namespace: otel
+roleRef:
+  kind: Role
+  name: jaeger-daemonset-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+Apply the role and role binding:
+
+```sh
+kubectl apply -f jaeger-daemonset-role.yaml
+kubectl apply -f jaeger-daemonset-rolebinding.yaml
+```
+
+Finally, ensure your Helm deployment uses the `jaeger-sa` service account:
+
+```sh
+helm install jaeger jaegertracing/jaeger --namespace otel --set serviceAccount.name=jaeger-sa
+```
+
+By following these steps, you should be able to resolve the permission issue and successfully deploy Jaeger with the necessary DaemonSet.
