@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+  namespace: default  # Adjust to your namespace
+  annotations:
+    sidecar.opentelemetry.io/inject: "true"  # Enable auto-instrumentation
+spec:
+  containers:
+  - name: myapp
+    image: node:18
+    command: ["node", "/usr/src/app/index.js"]
+    volumeMounts:
+    - name: app-volume
+      mountPath: /usr/src/app
+    ports:
+    - containerPort: 3000
+      protocol: TCP
+  volumes:
+  - name: app-volume
+    configMap:
+      name: myapp-config
