@@ -1,0 +1,60 @@
+To update a quality profile rule manually in **SonarQube Enterprise Edition**, follow these steps:
+
+### Step-by-Step Guide for Updating Quality Profile Rules
+
+#### 1. **Log in to SonarQube**
+   - Open your web browser and navigate to your SonarQube URL (e.g., `http://localhost:9000`).
+   - Log in with your **SonarQube administrator** or **project administrator** credentials.
+
+#### 2. **Access the Quality Profiles**
+   - From the main dashboard, click on the **“Quality Profiles”** tab in the top navigation menu.
+   - Here, you will see a list of quality profiles for different languages.
+
+#### 3. **Select the Quality Profile to Update**
+   - From the list of quality profiles, choose the one you want to update.
+     - For example, if you want to update the **Java** quality profile, select the relevant Java profile (e.g., **Sonar way** or any custom profile).
+   - Click on the profile name to view its details.
+
+#### 4. **Update/Add New Rules**
+   - Once inside the selected quality profile, you'll see options for managing the profile's rules.
+   - To **add new rules**:
+     - Click on the **“Activate More Rules”** button at the top.
+     - You can filter rules by different criteria such as **language**, **status**, **tag**, or **repository**.
+     - If you're specifically looking for **new rules**:
+       - Filter by the **"New"** tag or status.
+     - Select the rule(s) you want to add, then click **“Activate”**.
+
+#### 5. **Deactivate Unwanted Rules**
+   - To remove or deactivate unwanted rules:
+     - In the quality profile's rule list, locate the rule you want to deactivate.
+     - Click the **checkbox** next to the rule and click the **“Deactivate”** button.
+     - The rule will be deactivated for that profile but will remain available globally.
+
+#### 6. **Review and Apply Changes**
+   - After making changes to the rules (adding, activating, or deactivating them), SonarQube will automatically save the updates to your quality profile.
+   - You can now **re-scan your project** with the updated profile to ensure that the new rules are applied.
+
+#### 7. **(Optional) Backup Quality Profile**
+   - If you want to **export** the quality profile for backup or sharing with other SonarQube instances:
+     - Click the **“Backup”** button in the profile details.
+     - Save the profile as an XML file for future use.
+
+### Visual Walkthrough:
+
+1. **Navigate to Quality Profiles**:
+   ![Navigate to Quality Profiles](https://docs.sonarqube.org/latest/instance-administration/quality-profiles/quality-profiles-list.png)
+
+2. **Activate New Rules**:
+   ![Activate Rules](https://docs.sonarqube.org/latest/instance-administration/quality-profiles/activate-rules.png)
+
+3. **Deactivate Rules**:
+   ![Deactivate Rules](https://docs.sonarqube.org/latest/instance-administration/quality-profiles/deactivate-rules.png)
+
+---
+
+### Tips:
+- Ensure that the profile you're updating is the one being used by your project. You can check or change the assigned profile in the **project settings**.
+- If you're updating rules across multiple profiles, repeat the process for each language or custom profile.
+- Periodically check for new rules or updated rules from SonarQube to keep your profile up to date.
+
+By following these steps, you can manually update the rules in your SonarQube quality profile.
