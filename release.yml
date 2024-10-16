@@ -1,0 +1,56 @@
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+
+categories:
+  - title: '🚀 Features'
+    label: 'feature'
+  - title: '🐛 Bug Fixes'
+    label: 'bug'
+  - title: '🔧 Maintenance'
+    label: 'chore'
+  - title: '🔀 Merges'
+    label: 'merge'
+
+change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
+
+template: |
+  ## Release: v$NEXT_PATCH_VERSION
+
+  **Author**: @$AUTHOR
+  **Released on**: {{now "YYYY-MM-DD"}}
+
+  ## Features
+  {{#each changes}}
+    {{#if (hasLabel this "feature")}}
+      - {{this.title}} (#{{this.number}}) by @{{this.author}}
+    {{/if}}
+  {{/each}}
+
+  ## Bug Fixes
+  {{#each changes}}
+    {{#if (hasLabel this "bug")}}
+      - {{this.title}} (#{{this.number}}) by @{{this.author}}
+    {{/if}}
+  {{/each}}
+
+  ## Merges
+  {{#each changes}}
+    {{#if (hasLabel this "merge")}}
+      - {{this.title}} (#{{this.number}}) by @{{this.author}}
+    {{/if}}
+  {{/each}}
+
+  ## Maintenance
+  {{#each changes}}
+    {{#if (hasLabel this "chore")}}
+      - {{this.title}} (#{{this.number}}) by @{{this.author}}
+    {{/if}}
+  {{/each}}
+
+  ## Contributors
+
+  Thanks to the following contributors for this release:
+
+  {{#each contributors}}
+    - @{{this}}
+  {{/each}}
