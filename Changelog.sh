@@ -12,14 +12,16 @@ patch=$((patch + 1))
 new_tag="${prefix}${major}.${minor}.${patch}"
 echo "New tag: $new_tag"
 
-# Step 3: Create a new tag and push
+# Step 3: Generate the changelog
+conventional-changelog -p angular -i CHANGELOG.md -s
+
+# Step 4: Commit and push the changelog
+git add CHANGELOG.md
+git commit -m "chore: update changelog for $new_tag"
+git push origin main
+
+# Step 5: Create a new tag and push
 git tag "$new_tag"
 git push origin "$new_tag"
-
-# Step 4: Generate the changelog
-conventional-changelog -p angular -i CHANGELOG.md -s --commit-path .
-
-# Step 5: Create a GitHub release
-gh release create "$new_tag" --title "Release $new_tag" --notes "$(cat CHANGELOG.md)"
 
 echo "Release process completed successfully."
