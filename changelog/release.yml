@@ -1,0 +1,42 @@
+name: Releases
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Generate Changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v3.7.1
+        with:
+          github-token: ${{ secrets.CHANGELOG_RELEASE }}
+          version-file: "./package.json,./package-lock.json"
+
+      - name: Write Changelog to File
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        run: echo "${{ steps.changelog.outputs.clean_changelog }}" > changelog.md
+
+      - name: Commit Changelog
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add changelog.md
+          git commit -m "chore: update changelog.md"
+          git push
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHANGELOG_RELEASE }}
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          release_name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
