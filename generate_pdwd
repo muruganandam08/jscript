@@ -1,0 +1,54 @@
+node {
+    // Configuration variables
+    def jenkinsUrl = 'http://<your-jenkins-url>'
+    def jenkinsUsername = '<your-jenkins-username>'
+    def jenkinsToken = '<your-jenkins-api-token>'
+    def credentialId = '<your-jenkins-credential-id>'
+    def credentialUsername = '<your-existing-username>'
+
+    // Function to generate a 10-digit random password
+    def generatePassword = { length ->
+        def chars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+        def random = new Random()
+        return (1..length).collect { chars[random.nextInt(chars.size())] }.join()
+    }
+
+    // Generate a 10-digit password
+    def newPassword = generatePassword(10)
+    echo "Generated new password."
+
+    stage('Update Jenkins Credentials') {
+        try {
+            // Define the XML structure for the credential
+            def credentialsXml = """
+                <com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
+                    <scope>GLOBAL</scope>
+                    <id>${credentialId}</id>
+                    <description>Updated deploy user password</description>
+                    <username>${credentialUsername}</username>
+                    <password>${newPassword}</password>
+                </com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
+            """
+
+            // Use Jenkins REST API to update the credentials
+            def response = sh(
+                script: """
+                    curl -s -o /dev/null -w "%{http_code}" -X POST "${jenkinsUrl}/credentials/store/system/domain/_/credential/${credentialId}/config.xml" \\
+                        --user "${jenkinsUsername}:${jenkinsToken}" \\
+                        -H "Content-Type: application/xml" \\
+                        --data '${credentialsXml}'
+                """,
+                returnStdout: true
+            ).trim()
+
+            // Check response code to confirm successful update
+            if (response == "200") {
+                echo "Jenkins credentials updated successfully."
+            } else {
+                error "Failed to update Jenkins credentials. HTTP response code: ${response}"
+            }
+        } catch (Exception e) {
+            error "Error updating Jenkins credentials: ${e.getMessage()}"
+        }
+    }
+}
