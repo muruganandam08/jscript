@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+
+    environment {
+        CREDENTIAL_ID = 'xsa-user' // The actual ID of the credential within the user store
+        USERNAME = 'm_murugan' // The username for which the credential store is scoped
+    }
+
+    stages {
+        stage('Generate Password') {
+            steps {
+                script {
+                    // Generate a random password
+                    def chars = ('A'..'Z') + ('a'..'z') + ('0'..'9') + '!@#$%^&*()'
+                    def password = (1..12).collect { chars[new Random().nextInt(chars.size())] }.join('')
+                    env.NEW_PASSWORD = password
+                    echo "Generated a new password."
+                }
+            }
+        }
+
+        stage('Update User-Scoped Jenkins Credential') {
+            steps {
+                script {
+                    // Locate the user object for `m_murugan`
+                    def user = Jenkins.instance.getUser(USERNAME)
+                    if (user == null) {
+                        error "User '${USERNAME}' not found in Jenkins."
+                    }
+
+                    // Access the credentials store for the specific user
+                    def store = user.getProperty(com.cloudbees.plugins.credentials.UserCredentialsProvider.UserCredentialsProperty).getStore()
+
+                    // Find the specific credential by ID within the user store
+                    def existingCredentials = store.getCredentials(
+                        com.cloudbees.plugins.credentials.domains.Domain.global()
+                    ).find { it.id == CREDENTIAL_ID }
+
+                    if (existingCredentials) {
+                        // Create updated credentials with the new password
+                        def updatedCredentials = new com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl(
+                            com.cloudbees.plugins.credentials.CredentialsScope.GLOBAL,
+                            CREDENTIAL_ID,
+                            "Updated via Jenkins pipeline",
+                            existingCredentials.username,
+                            env.NEW_PASSWORD
+                        )
+
+                        // Update the credential in the user store
+                        store.updateCredentials(
+                            com.cloudbees.plugins.credentials.domains.Domain.global(),
+                            existingCredentials,
+                            updatedCredentials
+                        )
+
+                        echo "User-scoped credential '${CREDENTIAL_ID}' for user '${USERNAME}' updated successfully."
+                    } else {
+                        error "No credential with ID '${CREDENTIAL_ID}' found for user '${USERNAME}'."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Password update completed successfully."
+        }
+        failure {
+            echo "Password update failed."
+        }
+    }
+}
