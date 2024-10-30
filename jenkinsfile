@@ -6,30 +6,22 @@ pipeline {
     }
 
     stages {
-        stage('Check Job Name and Generate Password') {
+        stage('Check and Generate Password') {
             steps {
                 script {
-                    // Check if the job name matches the credential ID
-                    if (env.JOB_NAME != CREDENTIAL_ID) {
-                        error "Job name does not match credential ID. Halting the pipeline."
-                    } else {
-                        echo "Job name matches credential ID. Proceeding with password generation."
-
-                        // Generate a random password
-                        def chars = ('A'..'Z') + ('a'..'z') + ('0'..'9') + '!@#$%^&*()'
-                        def password = (1..12).collect { chars[new Random().nextInt(chars.size())] }.join()
-
-                        // Store password in environment variable to pass to next stage
-                        env.NEW_PASSWORD = password
-                    }
+                    // Generate a random password
+                    def chars = ('A'..'Z') + ('a'..'z') + ('0'..'9') + '!@#$%^&*()'
+                    def password = (1..12).collect { chars[new Random().nextInt(chars.size())] }.join()
+                    env.NEW_PASSWORD = password
+                    echo "Generated a new password for the credential update process."
                 }
             }
         }
 
-        stage('Update Jenkins Credential') {
+        stage('Update Matching Jenkins Credential') {
             steps {
                 script {
-                    // Update Jenkins credential with the new password
+                    // Retrieve all credentials and filter for the one matching the job name
                     def credentials = com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials(
                         com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class,
                         Jenkins.instance,
@@ -37,7 +29,10 @@ pipeline {
                         null
                     ).find { it.id == CREDENTIAL_ID }
 
+                    // Proceed only if a matching credential is found
                     if (credentials) {
+                        echo "Matching credential with ID '${CREDENTIAL_ID}' found. Updating password."
+
                         def username = credentials.username
 
                         // Create new credentials with updated password
@@ -49,7 +44,7 @@ pipeline {
                             env.NEW_PASSWORD
                         )
 
-                        // Update credential in Jenkins
+                        // Update the credential in Jenkins
                         def store = Jenkins.instance.getExtensionList(
                             'com.cloudbees.plugins.credentials.SystemCredentialsProvider'
                         )[0].getStore()
@@ -61,7 +56,7 @@ pipeline {
 
                         echo "Credential '${CREDENTIAL_ID}' updated successfully."
                     } else {
-                        error "Credential with ID '${CREDENTIAL_ID}' not found."
+                        error "No credential with ID '${CREDENTIAL_ID}' found. Skipping update."
                     }
                 }
             }
