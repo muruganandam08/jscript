@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+
+    environment {
+        CREDENTIAL_ID = 'xsa-user' // The credential ID you want to update
+    }
+
+    stages {
+        stage('Generate Password') {
+            steps {
+                script {
+                    // Generate a random password
+                    def chars = ('A'..'Z') + ('a'..'z') + ('0'..'9') + '!@#$%^&*()'
+                    def newPassword = (1..12).collect { chars[new Random().nextInt(chars.size())] }.join('')
+                    env.NEW_PASSWORD = newPassword
+                    echo "Generated a new password."
+                }
+            }
+        }
+
+        stage('Update Jenkins Credential') {
+            steps {
+                // Use withCredentials to access existing credentials with the specified ID
+                withCredentials([usernamePassword(credentialsId: CREDENTIAL_ID, 
+                                                  usernameVariable: 'USERNAME', 
+                                                  passwordVariable: 'OLD_PASSWORD')]) {
+                    script {
+                        // Use `USERNAME` and `NEW_PASSWORD` to update the credential
+                        def updatedCredentials = new com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl(
+                            com.cloudbees.plugins.credentials.CredentialsScope.GLOBAL,
+                            CREDENTIAL_ID,
+                            "Updated via Jenkins pipeline",
+                            env.USERNAME,
+                            env.NEW_PASSWORD
+                        )
+
+                        // Access Jenkins' global credential store and update the credential
+                        def store = Jenkins.instance.getExtensionList(
+                            'com.cloudbees.plugins.credentials.SystemCredentialsProvider'
+                        )[0].getStore()
+
+                        // Find the credential by ID and update it
+                        def existingCredentials = store.getCredentials(
+                            com.cloudbees.plugins.credentials.domains.Domain.global()
+                        ).find { it.id == CREDENTIAL_ID }
+
+                        if (existingCredentials) {
+                            store.updateCredentials(
+                                com.cloudbees.plugins.credentials.domains.Domain.global(),
+                                existingCredentials,
+                                updatedCredentials
+                            )
+                            echo "Credential '${CREDENTIAL_ID}' updated successfully."
+                        } else {
+                            error "Credential with ID '${CREDENTIAL_ID}' not found."
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Password update completed successfully."
+        }
+        failure {
+            echo "Password update failed."
+        }
+    }
+}
