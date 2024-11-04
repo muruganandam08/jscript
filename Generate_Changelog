@@ -1,0 +1,21 @@
+stage('Generate Changelog') {
+    steps {
+        script {
+            // Create or overwrite CHANGELOG.md
+            writeFile file: 'CHANGELOG.md', text: "# Changelog\n\n"
+            
+            // Append the latest tag information using Groovy interpolation
+            def changelogHeader = "## [${env.LATEST_TAG}] - ${new Date().format('yyyy-MM-dd')}\n"
+            writeFile file: 'CHANGELOG.md', text: changelogHeader, append: true
+            
+            // Get commit messages between the last two tags
+            def changelogContent = sh(returnStdout: true, script: "git log ${env.PREVIOUS_TAG}..${env.LATEST_TAG} --pretty=format:'- %s (%an)'").trim()
+            
+            // Append changelog content to CHANGELOG.md
+            sh "echo '${changelogContent}' >> CHANGELOG.md"
+            
+            // Display CHANGELOG.md content in the console
+            sh "cat CHANGELOG.md"
+        }
+    }
+}
