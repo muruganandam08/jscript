@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+    environment {
+        // Set up the repository URL and branch/tag
+        REPO_URL = 'https://github.com/yourusername/yourrepo.git'
+    }
+    stages {
+        stage('Clone Repository') {
+            steps {
+                // Clone the GitHub repository
+                git url: "${env.REPO_URL}", branch: 'main'
+            }
+        }
+        stage('Fetch Latest Tag') {
+            steps {
+                script {
+                    // Fetch tags and retrieve the latest tag
+                    def latestTag = sh(returnStdout: true, script: "git describe --tags `git rev-list --tags --max-count=1`").trim()
+                    echo "Latest Tag: ${latestTag}"
+                    
+                    // Get the previous tag if exists
+                    def previousTag = sh(returnStdout: true, script: "git describe --tags `git rev-list --tags --skip=1 --max-count=1`").trim()
+                    echo "Previous Tag: ${previousTag}"
+
+                    // Store tags in environment variables for later use
+                    env.LATEST_TAG = latestTag
+                    env.PREVIOUS_TAG = previousTag
+                }
+            }
+        }
+        stage('Generate Changelog') {
+            steps {
+                script {
+                    // Create or overwrite CHANGELOG.md
+                    writeFile file: 'CHANGELOG.md', text: "# Changelog\n\n"
+                    
+                    // Append latest tag information
+                    sh "echo '## [${env.LATEST_TAG}] - $(date +%Y-%m-%d)' >> CHANGELOG.md"
+                    
+                    // Get commit messages between the last two tags
+                    def changelogContent = sh(returnStdout: true, script: "git log ${env.PREVIOUS_TAG}..${env.LATEST_TAG} --pretty=format:'- %s (%an)'").trim()
+                    
+                    // Append changelog content to CHANGELOG.md
+                    sh "echo '${changelogContent}' >> CHANGELOG.md"
+                    
+                    // Display CHANGELOG.md content in the console
+                    sh "cat CHANGELOG.md"
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Changelog generated successfully.'
+            archiveArtifacts artifacts: 'CHANGELOG.md', allowEmptyArchive: false
+        }
+        failure {
+            echo 'Failed to generate changelog.'
+        }
+    }
+}
