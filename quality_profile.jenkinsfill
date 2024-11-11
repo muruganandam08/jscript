@@ -60,3 +60,66 @@ pipeline {
         }
     }
 }
+
+
+===============================================================================================================================
+
+node {
+    // Define variables
+    def sonarQubeUrl = 'https://your-sonarqube-server.com'
+    def sonarQubeToken = credentials('sonarqube-token-id')  // Replace with your SonarQube token ID in Jenkins credentials
+    def language = 'java'  // Change this to the target language for the quality profile
+    def qualityProfileName = 'Custom_Quality_Profile'  // Name of the profile to create/update
+
+    stage('Create Quality Profile') {
+        try {
+            // Create the quality profile if it doesn't exist
+            def createProfileResponse = sh(
+                script: """curl -s -X POST "$sonarQubeUrl/api/qualityprofiles/create" \
+                    -H "Authorization: Bearer $sonarQubeToken" \
+                    -d "language=$language&name=$qualityProfileName"
+                """,
+                returnStatus: true
+            )
+
+            if (createProfileResponse == 0) {
+                echo "Quality profile '$qualityProfileName' created or already exists."
+            } else {
+                error("Failed to create quality profile '$qualityProfileName'.")
+            }
+        } catch (Exception e) {
+            echo "Error in creating quality profile: ${e.message}"
+            error("Pipeline terminated due to profile creation failure.")
+        }
+    }
+
+    stage('Activate Rules for Quality Profile') {
+        try {
+            // Fetch all rules for the specified language
+            def rulesList = sh(
+                script: """curl -s -X GET "$sonarQubeUrl/api/rules/search?languages=$language&p=1&ps=500" \
+                    -H "Authorization: Bearer $sonarQubeToken" \
+                    | jq -r '.rules[].key'
+                """,
+                returnStdout: true
+            ).trim().split('\n')
+
+            // Activate each rule for the quality profile
+            rulesList.each { rule ->
+                sh """curl -s -X POST "$sonarQubeUrl/api/qualityprofiles/activate_rule" \
+                    -H "Authorization: Bearer $sonarQubeToken" \
+                    -d "rule=$rule&qualityProfile=$qualityProfileName&language=$language"
+                """
+                echo "Activated rule: $rule"
+            }
+
+            echo "All rules activated for quality profile '$qualityProfileName'."
+        } catch (Exception e) {
+            echo "Error in activating rules: ${e.message}"
+            error("Pipeline terminated due to rule activation failure.")
+        }
+    }
+    
+    // Final step: Notify of completion
+    echo 'Quality profile creation and rule update completed successfully.'
+}
