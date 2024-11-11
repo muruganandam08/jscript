@@ -1,0 +1,62 @@
+pipeline {
+    agent any
+    environment {
+        SONARQUBE_URL = 'https://your-sonarqube-server.com'
+        SONARQUBE_TOKEN = credentials('sonarqube-token-id')  // Stored in Jenkins Credentials
+        LANGUAGE = 'java'  // Change this to your target language
+        QUALITY_PROFILE_NAME = 'Custom_Quality_Profile'  // Name of the profile you want to create/update
+    }
+    stages {
+        stage('Create Quality Profile') {
+            steps {
+                script {
+                    def createProfileResponse = sh(
+                        script: """curl -s -X POST "$SONARQUBE_URL/api/qualityprofiles/create" \
+                            -H "Authorization: Bearer $SONARQUBE_TOKEN" \
+                            -d "language=$LANGUAGE&name=$QUALITY_PROFILE_NAME"
+                        """,
+                        returnStatus: true
+                    )
+                    if (createProfileResponse == 0) {
+                        echo "Quality profile created or already exists."
+                    } else {
+                        echo "Failed to create quality profile."
+                        error("Pipeline terminated due to profile creation failure.")
+                    }
+                }
+            }
+        }
+
+        stage('Activate Rules for Quality Profile') {
+            steps {
+                script {
+                    // Get list of all available rules for the language
+                    def rulesList = sh(
+                        script: """curl -s -X GET "$SONARQUBE_URL/api/rules/search?languages=$LANGUAGE&p=1&ps=500" \
+                            -H "Authorization: Bearer $SONARQUBE_TOKEN" \
+                            | jq -r '.rules[].key'
+                        """,
+                        returnStdout: true
+                    ).trim().split('\n')
+
+                    // Loop over each rule and activate it for the profile
+                    for (rule in rulesList) {
+                        sh """curl -s -X POST "$SONARQUBE_URL/api/qualityprofiles/activate_rule" \
+                            -H "Authorization: Bearer $SONARQUBE_TOKEN" \
+                            -d "rule=$rule&qualityProfile=$QUALITY_PROFILE_NAME&language=$LANGUAGE"
+                        """
+                    }
+                    echo "All rules activated for quality profile: $QUALITY_PROFILE_NAME"
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Quality profile created and rules updated successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
