@@ -154,3 +154,42 @@ for rule_key in $rule_keys; do
     echo "Activated rule $rule_key for quality profile '$QUALITY_PROFILE_NAME'"
   fi
 done
+
+
+
+=======
+# Step 1: Create a quality profile and capture the raw response
+SONAR_HOST_URL="http://localhost:9000"
+SONAR_AUTH_TOKEN="YOUR_SONAR_AUTH_TOKEN"
+QUALITY_PROFILE_NAME="New_Custom_Quality_Profile"
+LANGUAGE="java"
+
+create_profile_response=$(curl -s -u "$SONAR_AUTH_TOKEN:" -X POST "$SONAR_HOST_URL/api/qualityprofiles/create" \
+  -d "language=$LANGUAGE" \
+  -d "name=$QUALITY_PROFILE_NAME")
+
+# Step 2: Output raw response for inspection
+echo "$create_profile_response" > create_profile_response_raw.log
+echo "Raw response saved to create_profile_response_raw.log for inspection."
+
+# Step 3: Attempt to clean up the response by removing control characters
+cleaned_response=$(echo "$create_profile_response" | tr -d '\r\n' | sed 's/[\x00-\x1F\x7F]//g' | sed 's/\\/\\\\/g')
+
+# Step 4: Output cleaned response for verification
+echo "$cleaned_response" > create_profile_response_cleaned.log
+echo "Cleaned response saved to create_profile_response_cleaned.log for inspection."
+
+# Step 5: Validate JSON structure
+if echo "$cleaned_response" | jq empty > /dev/null 2>&1; then
+  profile_key=$(echo "$cleaned_response" | jq -r '.profile.key // empty')
+else
+  echo "Error: Invalid JSON structure even after cleaning. Check create_profile_response_cleaned.log for details."
+  exit 1
+fi
+
+# Check if the profile key was successfully extracted
+if [ -z "$profile_key" ]; then
+  echo "Failed to create quality profile or retrieve the key. Response logged in create_profile_response_cleaned.log"
+  exit 1
+fi
+echo "Created quality profile '$QUALITY_PROFILE_NAME' with key: $profile_key"
